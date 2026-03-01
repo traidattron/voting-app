@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voting App</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 2em;
+    }
+
+    .question {
+      color: #666;
+      font-size: 1.2em;
+      margin-bottom: 30px;
+    }
+
+    .voting-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    .vote-btn {
+      flex: 1;
+      padding: 20px 30px;
+      font-size: 1.3em;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .vote-btn.yes {
+      background: #10b981;
+      color: white;
+    }
+
+    .vote-btn.yes:hover {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .vote-btn.no {
+      background: #ef4444;
+      color: white;
+    }
+
+    .vote-btn.no:hover {
+      background: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+    }
+
+    .vote-btn.selected {
+      transform: scale(1.05);
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.5);
+    }
+
+    .vote-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status-message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-weight: 500;
+      display: none;
+    }
+
+    .status-message.success {
+      background: #d1fae5;
+      color: #065f46;
+      display: block;
+    }
+
+    .status-message.error {
+      background: #fee2e2;
+      color: #991b1b;
+      display: block;
+    }
+
+    .current-vote {
+      color: #666;
+      font-size: 0.95em;
+      margin-top: 15px;
+      font-style: italic;
+    }
+
+    .admin-link {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .admin-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 0.9em;
+    }
+
+    .admin-link a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗳️ Vote Now</h1>
+    <p class="question">Do you agree with this proposal?</p>
+    
+    <div class="voting-buttons">
+      <button class="vote-btn yes" id="yesBtn">
+        👍 Yes
+      </button>
+      <button class="vote-btn no" id="noBtn">
+        👎 No
+      </button>
+    </div>
+
+    <div class="current-vote" id="currentVote"></div>
+    <div class="status-message" id="statusMessage"></div>
+
+    <div class="admin-link">
+      <a href="/admin">View Admin Dashboard →</a>
+    </div>
+  </div>
+
+  <script>
+    let currentVote = null;
+
+    // Load current vote on page load
+    async function loadCurrentVote() {
+      try {
+        const response = await fetch('/api/vote');
+        const data = await response.json();
+        
+        if (data.vote) {
+          currentVote = data.vote;
+          updateUI();
+        }
+      } catch (error) {
+        console.error('Error loading vote:', error);
+      }
+    }
+
+    // Update UI based on current vote
+    function updateUI() {
+      const yesBtn = document.getElementById('yesBtn');
+      const noBtn = document.getElementById('noBtn');
+      const currentVoteEl = document.getElementById('currentVote');
+
+      // Remove selected class from both
+      yesBtn.classList.remove('selected');
+      noBtn.classList.remove('selected');
+
+      // Add selected class to current vote
+      if (currentVote === 'yes') {
+        yesBtn.classList.add('selected');
+        currentVoteEl.textContent = 'Your current vote: Yes';
+      } else if (currentVote === 'no') {
+        noBtn.classList.add('selected');
+        currentVoteEl.textContent = 'Your current vote: No';
+      } else {
+        currentVoteEl.textContent = '';
+      }
+    }
+
+    // Submit vote
+    async function submitVote(vote) {
+      const yesBtn = document.getElementById('yesBtn');
+      const noBtn = document.getElementById('noBtn');
+      const statusMessage = document.getElementById('statusMessage');
+
+      // Disable buttons while submitting
+      yesBtn.disabled = true;
+      noBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/vote', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ vote })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          currentVote = vote;
+          updateUI();
+          
+          statusMessage.className = 'status-message success';
+          statusMessage.textContent = currentVote === vote && data.message.includes('updated')
+            ? '✓ Vote updated successfully!'
+            : '✓ Vote recorded successfully!';
+          
+          setTimeout(() => {
+            statusMessage.style.display = 'none';
+          }, 3000);
+        } else {
+          throw new Error(data.error || 'Failed to submit vote');
+        }
+      } catch (error) {
+        console.error('Error submitting vote:', error);
+        statusMessage.className = 'status-message error';
+        statusMessage.textContent = '✗ Error submitting vote. Please try again.';
+      } finally {
+        yesBtn.disabled = false;
+        noBtn.disabled = false;
+      }
+    }
+
+    // Event listeners
+    document.getElementById('yesBtn').addEventListener('click', () => submitVote('yes'));
+    document.getElementById('noBtn').addEventListener('click', () => submitVote('no'));
+
+    // Load current vote on page load
+    loadCurrentVote();
+  </script>
+</body>
+</html>
